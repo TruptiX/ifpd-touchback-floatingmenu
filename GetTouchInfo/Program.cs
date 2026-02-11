@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.IO.Ports;
+using System.Text;
 
 namespace TouchDataCaptureService
 {
@@ -15,6 +17,13 @@ namespace TouchDataCaptureService
 
         // CHANGE MODE HERE
         private static readonly LogMode CurrentLogMode = LogMode.RawAndDecoded;
+
+        // ===================== SERIAL CONFIGURATION =====================
+        private static readonly string SerialPortName = "COM5"; // Change as needed
+        private static readonly int SerialBaudRate = 9600;
+        private static SerialPort? _serialPort;
+        private static Thread? _serialReaderThread;
+        private static volatile bool _serialThreadRunning = false;
 
         // ===================== CONSTANTS =====================
         private const int WM_INPUT = 0x00FF;
@@ -233,6 +242,9 @@ namespace TouchDataCaptureService
         private static readonly string DetailedLogFile =
             Path.Combine(AppContext.BaseDirectory, "hid_detailed.log");
 
+        private static readonly string SerialLogFile =
+            Path.Combine(AppContext.BaseDirectory, "serial_data.log");
+
         private static WndProc? _wndProc;
 
         // Store preparsed data for each device
@@ -242,6 +254,7 @@ namespace TouchDataCaptureService
         // Track if headers have been written
         private static bool _decodedHeaderWritten = false;
         private static bool _detailedHeaderWritten = false;
+        private static bool _serialHeaderWritten = false;
 
         // ===================== MAIN =====================
         [STAThread]
@@ -249,6 +262,9 @@ namespace TouchDataCaptureService
         {
             // Initialize log files and write headers for decoded data
             InitializeLogFiles();
+
+            // Initialize serial communication
+            InitializeSerial();
 
             _wndProc = WindowProc;
 
@@ -268,16 +284,194 @@ namespace TouchDataCaptureService
 
             RegisterHid(hwnd);
 
-            Debug.WriteLine("=== ENHANCED RAW HID TOUCH CAPTURE STARTED ===");
+            Debug.WriteLine("=== ENHANCED RAW HID TOUCH CAPTURE WITH SERIAL STARTED ===");
             Debug.WriteLine($"Log Mode: {CurrentLogMode}");
             Debug.WriteLine($"Raw Log: {RawLogFile}");
             Debug.WriteLine($"Decoded Log: {DecodedLogFile}");
             Debug.WriteLine($"Detailed Log: {DetailedLogFile}");
+            Debug.WriteLine($"Serial Log: {SerialLogFile}");
+            Debug.WriteLine($"Serial Port: {SerialPortName} @ {SerialBaudRate} baud");
             Debug.WriteLine("Touch the screen to see logs...\n");
+
+            // Start serial reader thread
+            StartSerialReaderThread();
 
             while (GetMessage(out MSG msg, IntPtr.Zero, 0, 0))
             {
                 DispatchMessage(ref msg);
+            }
+
+            // Cleanup
+            CleanupSerial();
+        }
+
+        // ===================== SERIAL COMMUNICATION =====================
+        private static void InitializeSerial()
+        {
+            try
+            {
+                _serialPort = new SerialPort(SerialPortName, SerialBaudRate, Parity.None, 8, StopBits.One)
+                {
+                    ReadTimeout = 1000,
+                    WriteTimeout = 1000,
+                    Handshake = Handshake.None,
+                    DtrEnable = true,
+                    RtsEnable = true
+                };
+
+                _serialPort.Open();
+                Debug.WriteLine($"Serial port {SerialPortName} opened successfully at {SerialBaudRate} baud");
+
+                // Write serial log header
+                WriteSerialLogHeader();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to open serial port {SerialPortName}: {ex.Message}");
+                _serialPort = null;
+            }
+        }
+
+        private static void StartSerialReaderThread()
+        {
+            if (_serialPort == null || !_serialPort.IsOpen)
+            {
+                Debug.WriteLine("Serial port not available, skipping serial reader thread");
+                return;
+            }
+
+            _serialThreadRunning = true;
+            _serialReaderThread = new Thread(SerialReaderWorker)
+            {
+                IsBackground = true,
+                Name = "SerialReader"
+            };
+            _serialReaderThread.Start();
+            Debug.WriteLine("Serial reader thread started");
+        }
+
+        private static void SerialReaderWorker()
+        {
+            var buffer = new StringBuilder();
+
+            while (_serialThreadRunning && _serialPort != null && _serialPort.IsOpen)
+            {
+                try
+                {
+                    if (_serialPort.BytesToRead > 0)
+                    {
+                        string data = _serialPort.ReadExisting();
+                        buffer.Append(data);
+
+                        // Process complete lines
+                        string bufferContent = buffer.ToString();
+                        string[] lines = bufferContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+                        if (bufferContent.EndsWith('\r') || bufferContent.EndsWith('\n'))
+                        {
+                            // All lines are complete
+                            foreach (string line in lines)
+                            {
+                                if (!string.IsNullOrWhiteSpace(line))
+                                {
+                                    LogSerialData($"RX: {line.Trim()}");
+                                }
+                            }
+                            buffer.Clear();
+                        }
+                        else if (lines.Length > 1)
+                        {
+                            // Process all complete lines except the last one
+                            for (int i = 0; i < lines.Length - 1; i++)
+                            {
+                                if (!string.IsNullOrWhiteSpace(lines[i]))
+                                {
+                                    LogSerialData($"RX: {lines[i].Trim()}");
+                                }
+                            }
+                            // Keep the last incomplete line in buffer
+                            buffer.Clear();
+                            buffer.Append(lines[lines.Length - 1]);
+                        }
+                    }
+
+                    Thread.Sleep(10); // Small delay to prevent excessive CPU usage
+                }
+                catch (TimeoutException)
+                {
+                    // Normal timeout, continue
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Serial reader error: {ex.Message}");
+                    LogSerialData($"ERROR: {ex.Message}");
+                    Thread.Sleep(1000); // Wait before retrying
+                }
+            }
+
+            Debug.WriteLine("Serial reader thread stopped");
+        }
+
+        public static void SendSerialData(string data)
+        {
+            if (_serialPort != null && _serialPort.IsOpen)
+            {
+                try
+                {
+                    _serialPort.WriteLine(data);
+                    LogSerialData($"TX: {data}");
+                    Debug.WriteLine($"Serial TX: {data}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to send serial data: {ex.Message}");
+                    LogSerialData($"TX_ERROR: {ex.Message}");
+                }
+            }
+            else
+            {
+                Debug.WriteLine("Serial port not available for sending data");
+            }
+        }
+
+        public static void SendTouchDataViaSerial(DecodedTouchData touchData)
+        {
+            if (_serialPort != null && _serialPort.IsOpen && touchData.IsValid)
+            {
+                try
+                {
+                    // Create a compact touch data message for serial transmission
+                    string message = $"TOUCH,{touchData.X},{touchData.Y},{touchData.ContactId},{(touchData.TipSwitch ? 1 : 0)},{touchData.Pressure}";
+                    SendSerialData(message);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to send touch data via serial: {ex.Message}");
+                }
+            }
+        }
+
+        private static void CleanupSerial()
+        {
+            _serialThreadRunning = false;
+
+            if (_serialReaderThread != null && _serialReaderThread.IsAlive)
+            {
+                _serialReaderThread.Join(2000); // Wait up to 2 seconds for thread to finish
+            }
+
+            if (_serialPort != null && _serialPort.IsOpen)
+            {
+                try
+                {
+                    _serialPort.Close();
+                    _serialPort.Dispose();
+                    Debug.WriteLine("Serial port closed");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error closing serial port: {ex.Message}");
+                }
             }
         }
 
@@ -291,6 +485,8 @@ namespace TouchDataCaptureService
                 File.Delete(DecodedLogFile);
             if (File.Exists(DetailedLogFile))
                 File.Delete(DetailedLogFile);
+            if (File.Exists(SerialLogFile))
+                File.Delete(SerialLogFile);
 
             // Write headers for decoded logs only (not for raw logs)
             if (CurrentLogMode is LogMode.DecodedOnly or LogMode.RawAndDecoded)
@@ -367,6 +563,28 @@ namespace TouchDataCaptureService
 
             File.WriteAllLines(DetailedLogFile, header);
             _detailedHeaderWritten = true;
+        }
+
+        private static void WriteSerialLogHeader()
+        {
+            var header = new List<string>
+            {
+                "# Serial Communication Log",
+                $"# Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+                $"# Port: {SerialPortName}",
+                $"# Baud Rate: {SerialBaudRate}",
+                "#",
+                "# Format: Timestamp [Direction] Data",
+                "# TX = Transmitted data",
+                "# RX = Received data",
+                "# ERROR = Communication errors",
+                "#",
+                "# ========================================",
+                ""
+            };
+
+            File.WriteAllLines(SerialLogFile, header);
+            _serialHeaderWritten = true;
         }
 
         // ===================== REGISTRATION =====================
@@ -455,6 +673,9 @@ namespace TouchDataCaptureService
                         {
                             LogDecoded($"[HID] {decoded.Summary}");
                             LogDetailed(decoded);
+
+                            // Send touch data via serial
+                            SendTouchDataViaSerial(decoded);
                         }
                         else
                         {
@@ -883,6 +1104,27 @@ namespace TouchDataCaptureService
             File.AppendAllText(DetailedLogFile, detailedLine + Environment.NewLine);
         }
 
+        private static readonly object _serialLogLock = new object();
+
+        private static void LogSerialData(string text)
+        {
+            string line = $"{DateTime.Now:HH:mm:ss.fff} {text}";
+
+            lock (_serialLogLock)
+            {
+                try
+                {
+                    File.AppendAllText(SerialLogFile, line + Environment.NewLine);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Serial log error: {ex.Message}");
+                }
+            }
+
+            Debug.WriteLine($"Serial: {line}");
+        }
+
         // ===================== CLEANUP =====================
         static Program()
         {
@@ -893,6 +1135,7 @@ namespace TouchDataCaptureService
                 {
                     HidD_FreePreparsedData(preparsedData);
                 }
+                CleanupSerial();
             };
         }
     }
