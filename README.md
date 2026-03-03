@@ -1,7 +1,7 @@
 | Supported Targets | ESP32-P4 | ESP32-S2 | ESP32-S3 |
 | ----------------- | -------- | -------- | -------- |
 
-# ifpd-touch-back
+# ifpd-touchback-floatingmenu
 To enable reverse touch / touch back feature in IA only IFPD
 
 ## TinyUSB Human Interface Device Example
