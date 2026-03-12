@@ -18,6 +18,7 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Runtime.InteropServices;
 using System.Text;
+using TouchDataCaptureService.Helpers;
 
 namespace TouchDataCaptureService
 {
@@ -36,7 +37,7 @@ namespace TouchDataCaptureService
 
         // ===================== SERIAL CONFIGURATION =====================
         // Make these configurable - can be overridden by config file or command line
-        private static string SerialPortName = "COM4"; // Default value
+        private static string SerialPortName = "COM10"; // Default value
         private static int SerialBaudRate = 3000000; // Changed to 3mbps
         private static SerialPort? _serialPort;
         private static Thread? _serialReaderThread;
@@ -45,6 +46,7 @@ namespace TouchDataCaptureService
         private static volatile bool _serialSenderThreadRunning = false;
         private static bool SendRawDataSerial = false;
         private static bool EnableSerialLogging = false; // Disabled by default
+        private static bool IsBypassEnabled = false;
 
         // UART Send Queue for decoupling
         private class SerialQueueItem
@@ -56,7 +58,7 @@ namespace TouchDataCaptureService
         }
         private static readonly ConcurrentQueue<SerialQueueItem> _serialSendQueue = new();
         private const int MaxQueueSize = 1000;
-        
+
         // Timing constants for serial operations
         private const int SerialReaderSleepMs = 2;
         private const int SerialSenderSleepMs = 1;
@@ -76,11 +78,11 @@ namespace TouchDataCaptureService
             private static readonly int MinSamplesForScaling = 10;
             private static readonly object _scalingLock = new object();
 
-            public static (int scaledX, int scaledY) ScaleCoordinates(int rawX, int rawY, IntPtr hDevice)
+            public static (int scaledX, int scaledY) ScaleCoordinates(int rawX, int rawY, Dictionary<string, (int min, int max)> logicalRanges)
             {
                 lock (_scalingLock)
                 {
-                    var logicalRanges = GetHidLogicalRanges(hDevice);
+                    
                     // Safely get logical ranges with defaults
                     if (logicalRanges.TryGetValue("X", out var xRange))
                     {
@@ -364,6 +366,12 @@ namespace TouchDataCaptureService
             public IntPtr DeviceHandle { get; set; }
             public byte ReportId { get; set; }
             public uint ContactCount { get; set; }
+
+            //Process related info
+            public string ProcessName { get; set; } = "";
+            public uint ProcessId { get; set; }
+            public IntPtr WindowHandle { get; set; }
+            public string WindowTitle { get; set; } = "";
         }
 
         // ===================== WIN32 API =====================
@@ -466,6 +474,14 @@ namespace TouchDataCaptureService
         private static readonly Dictionary<IntPtr, IntPtr> devicePreparsedData = new();
         private static readonly Dictionary<IntPtr, string> deviceNames = new();
 
+        // Track if headers have been written
+        private static bool _decodedHeaderWritten = false;
+        private static bool _detailedHeaderWritten = false;
+        private static bool _serialHeaderWritten = false;
+
+        private static List<string> SkipProcesses = new() { "InteractiveDisplayCapture", "ScreenPaint" };
+        private static readonly Dictionary<IntPtr, Dictionary<string, (int min, int max)>> deviceLogicalRanges = new();
+
         private static void ProcessCommandLineArgs(string[] args)
         {
             for (int i = 0; i < args.Length; i++)
@@ -482,7 +498,7 @@ namespace TouchDataCaptureService
                             i++; // Skip next argument as it's the value
                         }
                         break;
-                    case "_BAUDRATE":
+                    case "-BAUDRATE":
                     case "--BAUDRATE":
                         if (i + 1 < args.Length && int.TryParse(args[i + 1], out int baudRate))
                         {
@@ -493,6 +509,10 @@ namespace TouchDataCaptureService
                     case "-USERAW":
                     case "--USERAW":
                         SendRawDataSerial = true;
+                        break;
+                    case "-ENABLEBYPASS":
+                    case "--ENABLEBYPASS":
+                        IsBypassEnabled = true;
                         break;
                     case "-SERIALLOG":
                     case "--SERIALLOG":
@@ -513,15 +533,17 @@ namespace TouchDataCaptureService
             Console.WriteLine("Usage: TouchDataCaptureService.exe [options]");
             Console.WriteLine();
             Console.WriteLine("Options:");
-            Console.WriteLine("  -port <COMx>     Set serial port (e.g., -port COM3)");
-            Console.WriteLine("  --port <COMx>    Set serial port (e.g., --port COM3)");
-            Console.WriteLine("  -baudrate <num>  Set serial baudrate (e.g., -baudrate 9600)");
-            Console.WriteLine("  --baudrate <num> Set serial baudrate (e.g., --baudrate 9600)");
-            Console.WriteLine("  -useraw          Sends Raw data via serial. By default decoded data is being sent serially");
-            Console.WriteLine("  --useraw         Sends Raw data via serial. By default decoded data is being sent serially");
-            Console.WriteLine("  -seriallog       Enable serial communication logging (disabled by default)");
-            Console.WriteLine("  --seriallog      Enable serial communication logging (disabled by default)");
-            Console.WriteLine("  -h, --help       Show this help message");
+            PrintArgsDescription("-port <COMx>","Set serial port (e.g., -port COM3)");
+            PrintArgsDescription("--port <COMx>","Set serial port (e.g., --port COM3)");
+            PrintArgsDescription("-baudrate <Value>","Set serial baudrate (e.g., -baudrate 9600)");
+            PrintArgsDescription("--baudrate <Value>","Set serial baudrate (e.g., --baudrate 9600)");
+            PrintArgsDescription("-useraw","Sends Raw data via serial. By default decoded data is being sent serially");
+            PrintArgsDescription("--useraw","Sends Raw data via serial. By default decoded data is being sent serially");
+            PrintArgsDescription("-enablebypass", "If enabled, Touch events originating from Floating Menu and Annotation Tool are bypassed. Not enabled by default.");
+            PrintArgsDescription("--enablebypass", "If enabled, Touch events originating from Floating Menu and Annotation Tool are bypassed. Not enabled by default.");
+            PrintArgsDescription("-seriallog", "Enable serial communication logging (disabled by default)");
+            PrintArgsDescription("--seriallog", "Enable serial communication logging (disabled by default)");
+            PrintArgsDescription("-h, --help", "Show this help message");
             Console.WriteLine();
             Console.WriteLine("Features:");
             Console.WriteLine("  • Dynamic coordinate scaling: Automatically normalizes touch coordinates");
@@ -529,7 +551,7 @@ namespace TouchDataCaptureService
             Console.WriteLine("  • Touch all corners of the screen to establish coordinate range");
             Console.WriteLine();
             Console.WriteLine("Configuration:");
-            Console.WriteLine("  Baud rate: 921600 (default)");
+            Console.WriteLine("  Baud rate: 3000000 (default)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  TouchDataCaptureService.exe");
@@ -537,6 +559,15 @@ namespace TouchDataCaptureService
             Console.WriteLine("  TouchDataCaptureService.exe --port COM10");
             Console.WriteLine("  Pass multiple arguments as shown below: ");
             Console.WriteLine("     TouchDataCaptureService.exe --port COM4 --baudrate 9600 --useraw");
+            Console.WriteLine("     TouchDataCaptureService.exe -port COM4 -baudrate 9600 -enablebypass");
+        }
+
+        private static void PrintArgsDescription(string args, string explanation)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write($"  {args.PadRight(25)}");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(explanation);
         }
 
         // ===================== MAIN =====================
@@ -593,7 +624,7 @@ namespace TouchDataCaptureService
 
             IntPtr hwnd = CreateWindowExW(
                 0, wc.lpszClassName, "",
-                0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0,
                 IntPtr.Zero, IntPtr.Zero, wc.hInstance, IntPtr.Zero);
 
             RegisterHid(hwnd);
@@ -772,8 +803,10 @@ namespace TouchDataCaptureService
                         }
                         else if (!item.IsRawData && item.TouchData != null)
                         {
-                            // Send decoded touch data
-                            SendTouchDataViaSerialInternal(item.TouchData, item.DeviceHandle);
+                            if (deviceLogicalRanges.TryGetValue(item.DeviceHandle, out var logicalRanges))
+                            {
+                                SendTouchDataViaSerialInternal(item.TouchData, logicalRanges);
+                            }
                         }
                     }
                     else
@@ -866,14 +899,14 @@ namespace TouchDataCaptureService
             }
         }
 
-        private static void SendTouchDataViaSerialInternal(DecodedTouchData touchData, IntPtr hDevice)
+        private static void SendTouchDataViaSerialInternal(DecodedTouchData touchData, Dictionary<string, (int min, int max)> logicalRanges)
         {
             if (_serialPort != null && _serialPort.IsOpen && touchData.IsValid)
             {
                 try
                 {
                     // Apply dynamic coordinate scaling to normalize coordinates to HID range (0-32767)
-                    var (hidX, hidY) = CoordinateScaler.ScaleCoordinates(touchData.X, touchData.Y, hDevice);
+                    var (hidX, hidY) = CoordinateScaler.ScaleCoordinates(touchData.X, touchData.Y, logicalRanges);
 
                     // Send all decoded fields
                     // Format: TOUCH,x,y,cid,tip,pressure,inrange,confidence,width,height,azimuth,altitude,twist,contactcount
@@ -1153,7 +1186,7 @@ namespace TouchDataCaptureService
                     for (ushort i = 1; i <= contactCount; i++)
                     {
                         var decoded = DecodeHIDReport(header.hDevice, dataPtr, (uint)bytes, i);
-                        if (decoded.IsValid)
+                        if (decoded.IsValid && !SkipProcesses.Contains(decoded.ProcessName))
                         {
                             var decodedLogString = (i != contactCount) ? $"[HID] {decoded.Summary}" : $"[HID] {decoded.Summary}\n";
                             LogDecoded(decodedLogString);
@@ -1163,7 +1196,7 @@ namespace TouchDataCaptureService
                             if (!SendRawDataSerial)
                                 SendTouchDataViaSerial(decoded, header.hDevice);
                         }
-                        else
+                        if(!decoded.IsValid)
                         {
                             // Fallback to basic decoding
                             string? fallback = DecodeTouchReportFallback(report);
@@ -1224,6 +1257,26 @@ namespace TouchDataCaptureService
                         string deviceName = $"HID_{hDevice.ToString("X8")}";
                         deviceNames[hDevice] = deviceName;
 
+                        // ⚡ Get and cache HID logical ranges ONCE per device
+                        var logicalRanges = GetHidLogicalRanges(hDevice);
+                        deviceLogicalRanges[hDevice] = logicalRanges;
+
+                        // ⚡ Initialize WindowProcess screen metrics with logical ranges
+                        if (logicalRanges.ContainsKey("X") && logicalRanges.ContainsKey("Y"))
+                        {
+                            WindowProcess.InitializeScreenMetrics(
+                                logicalRanges["X"].min,
+                                logicalRanges["X"].max,
+                                logicalRanges["Y"].min,
+                                logicalRanges["Y"].max
+                            );
+                        }
+                        else
+                        {
+                            // Use default ranges if not available
+                            WindowProcess.InitializeScreenMetrics(0, 32767, 0, 32767);
+                        }
+
                         Debug.WriteLine($"Registered HID device: {deviceName}");
                     }
                 }
@@ -1268,18 +1321,32 @@ namespace TouchDataCaptureService
                     HID_USAGE_DIGITIZER_CONTACT_COUNT, out uint contactCount, preparsedData, reportData, reportSize);
                 result.ContactCount = contactCount;
 
-                // Get X coordinate
+                // Get X and Y coordinates (HID logical values)
                 if (HidP_GetUsageValue(HIDP_REPORT_TYPE.HidP_Input, HID_USAGE_PAGE_GENERIC_DESKTOP, linkCollection,
                     HID_USAGE_GENERIC_X, out uint x, preparsedData, reportData, reportSize) == HIDP_STATUS_SUCCESS)
                 {
                     result.X = (int)x;
                 }
 
-                // Get Y coordinate
                 if (HidP_GetUsageValue(HIDP_REPORT_TYPE.HidP_Input, HID_USAGE_PAGE_GENERIC_DESKTOP, linkCollection,
                     HID_USAGE_GENERIC_Y, out uint y, preparsedData, reportData, reportSize) == HIDP_STATUS_SUCCESS)
                 {
                     result.Y = (int)y;
+                }
+                
+                // Convert HID coordinates to screen coordinates for process detection
+                if (IsBypassEnabled && result.X >= 0 && result.Y >= 0)
+                {
+                    var (screenX, screenY) = WindowProcess.ConvertHidToScreenCoordinates(result.X, result.Y);
+                    
+                    // Now use screen coordinates for process detection
+                    var windowProcessData = WindowProcess.GetProcessAtPoint(screenX, screenY);
+                    result.ProcessName = windowProcessData.ProcessName;
+                    result.ProcessId = windowProcessData.ProcessId;
+                    result.WindowHandle = windowProcessData.WindowHandle;
+                    result.WindowTitle = windowProcessData.WindowTitle;
+                    
+                    Debug.WriteLine($"HID({result.X},{result.Y}) -> Screen({screenX},{screenY}) -> Process: {result.ProcessName}");
                 }
 
                 // Get Contact ID
@@ -1583,9 +1650,15 @@ namespace TouchDataCaptureService
                 $"ContactID: {data.ContactId}",
                 $"TipSwitch: {data.TipSwitch}",
                 $"InRange: {data.InRange}",
-                $"Confidence: {data.Confidence}"
+                $"Confidence: {data.Confidence}",
+                $"ProcessName: {data.ProcessName}",
+                $"ProcessID: {data.ProcessId}",
             };
 
+            if (!string.IsNullOrWhiteSpace(data.WindowTitle))
+            {
+                details.Add($"WindowTitle: {data.WindowTitle}");
+            }
             if (data.Pressure > 0) details.Add($"Pressure: {data.Pressure}");
             if (data.Width > 0) details.Add($"Width: {data.Width}");
             if (data.Height > 0) details.Add($"Height: {data.Height}");
