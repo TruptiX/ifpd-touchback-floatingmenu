@@ -47,6 +47,14 @@ namespace TouchDataCaptureService.Helpers
         [DllImport("user32.dll")]
         private static extern bool IsWindow(IntPtr hWnd);
 
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
+
         private const int SM_CXSCREEN = 0;  // Screen width
         private const int SM_CYSCREEN = 1;  // Screen height
 
@@ -159,6 +167,30 @@ namespace TouchDataCaptureService.Helpers
                 Debug.WriteLine($"Error getting process info: {ex.Message}");
                 return new WindowProcessInfo("Unknown", 0, IntPtr.Zero, "");
             }
+        }
+
+        public static bool IsSourceDeviceCasted(uint processId)
+        {
+            var windows = new List<WindowProcessInfo>();
+
+            EnumWindows((hWnd, lParam) =>
+            {
+                GetWindowThreadProcessId(hWnd, out uint windowProcessId);
+
+                if (windowProcessId == processId && IsWindowVisible(hWnd))
+                {
+                    StringBuilder title = new StringBuilder(256);
+                    int length = GetWindowText(hWnd, title, title.Capacity);
+                    string windowTitle = length > 0 ? title.ToString() : "";
+
+                    string processName = GetProcessNameCached(processId);
+                    windows.Add(new WindowProcessInfo(processName, processId, hWnd, windowTitle));
+                }
+
+                return true; // Continue enumeration
+            }, IntPtr.Zero);
+
+            return windows.Any(w => w.WindowTitle.Contains("PC Cast", StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>

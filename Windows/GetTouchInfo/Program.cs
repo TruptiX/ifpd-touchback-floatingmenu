@@ -1186,17 +1186,28 @@ namespace TouchDataCaptureService
                     for (ushort i = 1; i <= contactCount; i++)
                     {
                         var decoded = DecodeHIDReport(header.hDevice, dataPtr, (uint)bytes, i);
-                        if (decoded.IsValid && !SkipProcesses.Contains(decoded.ProcessName))
+                        if (decoded.IsValid)
                         {
                             var decodedLogString = (i != contactCount) ? $"[HID] {decoded.Summary}" : $"[HID] {decoded.Summary}\n";
                             LogDecoded(decodedLogString);
                             LogDetailed(decoded);
 
-                            // Send touch data via serial
-                            if (!SendRawDataSerial)
-                                SendTouchDataViaSerial(decoded, header.hDevice);
+                            if (!SkipProcesses.Contains(decoded.ProcessName))
+                            {
+                                // Send touch data via serial
+                                if (!SendRawDataSerial)
+                                    SendTouchDataViaSerial(decoded, header.hDevice);
+                            }
+                            if (decoded.ProcessName.Equals("InteractiveDisplayCapture"))
+                            {
+                                var isCasted = WindowProcess.IsSourceDeviceCasted(decoded.ProcessId);
+                                if (isCasted && !SendRawDataSerial)
+                                {
+                                   SendTouchDataViaSerial(decoded, header.hDevice);
+                                }
+                            }
                         }
-                        if(!decoded.IsValid)
+                        else
                         {
                             // Fallback to basic decoding
                             string? fallback = DecodeTouchReportFallback(report);
