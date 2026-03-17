@@ -22,7 +22,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using UserControl = System.Windows.Controls.UserControl;
 
-namespace InteractiveDisplayCapture.Controls
+namespace FloatingMenu.Controls
 {
     /// <summary>
     /// Interaction logic for EdgeMenuControl.xaml

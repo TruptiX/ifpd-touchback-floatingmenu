@@ -21,7 +21,7 @@ using System.Windows;
 using System.Windows.Input;
 using MessageBox = System.Windows.MessageBox;
 
-namespace InteractiveDisplayCapture.Controls
+namespace FloatingMenu.Controls
 {
     /// <summary>
     /// Interaction logic for CameraWindow.xaml
@@ -42,12 +42,7 @@ namespace InteractiveDisplayCapture.Controls
                 StopCamera();
                 CameraClosed?.Invoke();
             };
-            KeyDown += (s, e) =>
-            {
-                if (e.Key == Key.Escape)
-                    Close();
-            };
-
+           
         }
 
         private void StartCamera(int cameraIndex)
@@ -109,12 +104,6 @@ namespace InteractiveDisplayCapture.Controls
                 _capture = null;
             }
             catch { }
-        }
-
-        private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-        {
-            if (e.Key == Key.Escape)
-                Close();
         }
     }
 }

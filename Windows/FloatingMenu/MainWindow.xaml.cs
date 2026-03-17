@@ -15,7 +15,7 @@
 *
 ******************************************************************************* */
 
-using InteractiveDisplayCapture.Controls;
+using FloatingMenu.Controls;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -25,7 +25,7 @@ using System.Windows.Media.Animation;
 using MessageBox = System.Windows.MessageBox;
 
 
-namespace InteractiveDisplayCapture
+namespace FloatingMenu
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml

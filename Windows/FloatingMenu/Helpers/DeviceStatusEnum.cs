@@ -19,7 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace InteractiveDisplayCapture.Helpers
+namespace FloatingMenu.Helpers
 {
     public enum DeviceStatusEnum
     {

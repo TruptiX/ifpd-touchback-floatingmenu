@@ -20,7 +20,7 @@ using System.Data;
 using System.Windows;
 using Application = System.Windows.Application;
 
-namespace InteractiveDisplayCapture
+namespace FloatingMenu
 {
     /// <summary>
     /// Interaction logic for App.xaml

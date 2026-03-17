@@ -15,7 +15,7 @@
 *
 ******************************************************************************* */
 
-using InteractiveDisplayCapture.Helpers;
+using FloatingMenu.Helpers;
 using OpenCvSharp;
 using OpenCvSharp.WpfExtensions;
 using System.Collections.ObjectModel;
@@ -27,7 +27,7 @@ using System.Windows.Controls;
 using ListBox = System.Windows.Controls.ListBox;
 using MessageBox = System.Windows.MessageBox;
 
-namespace InteractiveDisplayCapture.Controls
+namespace FloatingMenu.Controls
 {
     /// <summary>
     /// Interaction logic for SignalSource.xaml

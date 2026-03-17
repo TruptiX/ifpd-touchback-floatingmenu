@@ -21,7 +21,7 @@ using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using Point = System.Windows.Point;
 using UserControl = System.Windows.Controls.UserControl;
 
-namespace InteractiveDisplayCapture.Controls
+namespace FloatingMenu.Controls
 {
     /// <summary>
     /// Interaction logic for EdgeHandleControl.xaml

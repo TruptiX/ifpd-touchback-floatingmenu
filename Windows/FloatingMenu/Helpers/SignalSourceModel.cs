@@ -21,7 +21,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace InteractiveDisplayCapture.Helpers
+namespace FloatingMenu.Helpers
 {
     public class SignalSourceModel : INotifyPropertyChanged
     {
