@@ -37,7 +37,6 @@ namespace FloatingMenu
 
         private SignalSource _signalSourcePage;
         private Process _touchProcess;
-        private bool _cameraClosedManually = false;
         public MainWindow()
         {
             InitializeComponent();
@@ -315,27 +314,6 @@ namespace FloatingMenu
                 ShowFlyout(_signalSourcePage);
                 EdgeMenu.PCStatus.Text = "";
             });
-
-
-
-            //Dispatcher.Invoke(() =>
-            //{
-            //    _cameraWindow = null;
-            //    _cameraClosedManually = true;
-            //    _menuOpen = false;
-            //    ToggleMenu();
-            //    EdgeMenu.ClearSelection();
-            //    EdgeMenu.SelectMenuItem(2);
-            //    if (_cameraClosedManually)
-            //    {
-            //        _signalSourcePage = new SignalSource();
-            //        _signalSourcePage.DeviceSelected += OpenCameraWindow;
-            //        _cameraClosedManually = false;
-            //    }
-            //    KillTouchDataCapture();
-            //    ShowFlyout(_signalSourcePage);
-
-            //});
         }
 
         private void KillTouchDataCapture()
@@ -345,7 +323,12 @@ namespace FloatingMenu
                 if (_touchProcess != null && !_touchProcess.HasExited)
                 {
                     _touchProcess.Kill();
-                    _touchProcess.WaitForExit();
+                    // Use a bounded wait to avoid blocking the UI thread indefinitely.
+                    const int waitTimeoutMilliseconds = 5000;
+                    if (!_touchProcess.WaitForExit(waitTimeoutMilliseconds))
+                    {
+                        Debug.WriteLine($"Timeout waiting for touch data capture process (PID {_touchProcess.Id}) to exit.");
+                    }
                 }
             }
             catch (Exception ex)
