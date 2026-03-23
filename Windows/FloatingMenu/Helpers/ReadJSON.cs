@@ -1,9 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿/******************************************************************************
+* Copyright (C) 2026 Intel Corporation
+* SPDX-License-Identifier: Apache-2.0
+*******************************************************************************/
+
+
 using System.IO;
 using System.IO.Ports;
-using System.Text;
 using System.Text.Json;
 
 namespace FloatingMenu.Helpers
