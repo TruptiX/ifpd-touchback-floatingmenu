@@ -43,10 +43,10 @@ TouchDataCaptureService/
 │       └── FolderProfile.pubxml  # Publish profile for deployment
 └── bin/ 
 	└── Release/ 
-	└── net10.0/        # Build output
-		└──publish/ 
-			└── winx-64
-				└── TouchDataCaptureService.exe  # Published executable
+		└── net10.0/        # Build output
+			└──publish/ 
+				└── winx-64
+					└── TouchDataCaptureService.exe  # Published executable
 ```
 
 ## ✨ Features
@@ -134,7 +134,7 @@ TouchDataCaptureService/
 
 1. **Connect your serial device** (ESP32, Arduino, etc.)
 2. **Identify the COM port** (Device Manager → Ports)
-3. **Run the application** asAdministrator
+3. **Run the application** as Administrator
 4. **Calibrate coordinates** by touching all four corners of the screen
 5. **Verify data** in log files or serial monitor
 
@@ -472,7 +472,6 @@ This is an internal Intel project. For contributions or issues:
 4. Push to the branch (`git push origin feature/improvement`)
 5. Create a Pull Request
 
----
 
 ## 📄 License
 

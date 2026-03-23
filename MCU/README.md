@@ -67,6 +67,13 @@ For issues related to:
 - **Touch protocol**: Review `parse_touch()` in [main/app_main.c](main/app_main.c)
 - **HID descriptor**: Review [main/hid_touch.c](main/hid_touch.c)
 
+## Additional Resources
+- **ESP-IDF Extension for VS Code**: [https://docs.espressif.com/projects/vscode-esp-idf-extension/en/latest/](https://docs.espressif.com/projects/vscode-esp-idf-extension/en/latest/)
+- **Getting Started with ESP32-S3**: [https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/get-started/index.html)
+- **ESP32-S3-DevKitC-1 v1.1 Board**: [https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html)
+- **Official ESP-IDF Github Repo**: [https://github.com/espressif/esp-idf](https://github.com/espressif/esp-idf)
+
+
 ## License
 
 Copyright (C) 2026 Intel Corporation  
