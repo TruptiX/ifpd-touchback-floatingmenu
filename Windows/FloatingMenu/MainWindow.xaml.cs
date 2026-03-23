@@ -249,8 +249,18 @@ namespace FloatingMenu
 
         private bool LaunchTouchDataCapture()
         {
-            if (_touchProcess != null && !_touchProcess.HasExited)
-                return false;
+            if (_touchProcess != null)
+            {
+                try
+                {
+                    if (!_touchProcess.HasExited)
+                        return true;
+                }
+                catch
+                {
+                    _touchProcess = null;
+                }
+            }
 
             try
             {
@@ -262,7 +272,7 @@ namespace FloatingMenu
                 "TouchDataCaptureService.exe"
             );
 
-                _touchProcess = new Process
+                var process = new Process
                 {
                     StartInfo = new ProcessStartInfo
                     {
@@ -272,12 +282,15 @@ namespace FloatingMenu
                         UseShellExecute = true
                     }
                 };
+                process.Start();
 
-                _touchProcess.Start();
+                _touchProcess = process;
+
                 return true;
             }
             catch (Exception ex)
             {
+                _touchProcess = null;
                 var ports = string.Join(", ", SerialPort.GetPortNames()); //
                 MessageBox.Show(
                     $"Invalid port in config\n\nAvailable ports:\n{ports}.",

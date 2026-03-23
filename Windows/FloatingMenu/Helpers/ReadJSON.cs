@@ -14,43 +14,45 @@ namespace FloatingMenu.Helpers
     {
         public static string GetPortFromExternalConfig()
         {
-            string path = @"C:\Floating_Menu\config.json";
+            string path = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "config.json"
+                );
 
-           
-                if (!File.Exists(path))
-                    throw new Exception("Config file not found");
+            if (!File.Exists(path))
+                throw new Exception("Config file not found");
 
-                string json = File.ReadAllText(path);
+            string json = File.ReadAllText(path);
 
-                ConfigModel config;
-                try
-                {
-                    config = JsonSerializer.Deserialize<ConfigModel>(json);
-                }
-                catch (JsonException ex)
-                {
-                    throw new Exception("Invalid JSON format: " + ex.Message);
-                }
+            ConfigModel config;
+            try
+            {
+                config = JsonSerializer.Deserialize<ConfigModel>(json);
+            }
+            catch (JsonException ex)
+            {
+                throw new Exception("Invalid JSON format: " + ex.Message);
+            }
 
-                if (config == null)
-                    throw new Exception("Invalid config structure");
+            if (config == null)
+                throw new Exception("Invalid config structure");
 
-                if (string.IsNullOrWhiteSpace(config.Port))
-                    throw new Exception("Port is missing in config");
+            if (string.IsNullOrWhiteSpace(config.Port))
+                throw new Exception("Port is missing in config");
 
-                string port = config.Port.Trim().ToUpper();
+            string port = config.Port.Trim().ToUpper();
 
-                var availablePorts = SerialPort.GetPortNames();
+            var availablePorts = SerialPort.GetPortNames();
 
-                if (!availablePorts.Contains(port))
-                    throw new Exception($"Port '{port}' not found on this machine");
+            if (!availablePorts.Contains(port))
+                throw new Exception($"Port '{port}' not found on this machine");
 
-                return port;
-           
+            return port;
+
         }
-     
+
     }
-  
+
     class ConfigModel
     {
         public string Port { get; set; }
