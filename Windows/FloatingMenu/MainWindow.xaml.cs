@@ -37,7 +37,6 @@ namespace FloatingMenu
 
         private SignalSource _signalSourcePage;
         private Process _touchProcess;
-        private bool _cameraClosedManually = false;
         public MainWindow()
         {
             InitializeComponent();
