@@ -4,7 +4,9 @@
 *******************************************************************************/
 
 using FloatingMenu.Controls;
+using FloatingMenu.Helpers;
 using System.Diagnostics;
+using System.IO.Ports;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -34,7 +36,7 @@ namespace FloatingMenu
         private Process _annotationProcess;
 
         private SignalSource _signalSourcePage;
-
+        private Process _touchProcess;
         private bool _cameraClosedManually = false;
         public MainWindow()
         {
@@ -137,7 +139,7 @@ namespace FloatingMenu
             {
                 _cameraWindow.Close();
                 _cameraWindow = null;
-                EdgeMenu.PCStatus.Text = _signalSourcePage.UpdateDevice();
+                KillTouchDataCapture();
             }
         }
 
@@ -176,7 +178,7 @@ namespace FloatingMenu
             }
         
             ShowFlyout(_signalSourcePage);
-            EdgeMenu.PCStatus.Text = _signalSourcePage.UpdateDevice();
+           
         }
 
         private void FlyoutPage_Loaded(object sender, RoutedEventArgs e)
@@ -214,6 +216,7 @@ namespace FloatingMenu
 
         private void OpenCameraWindow(int index)
         {
+            
             if (index == -1)
             {
                 CloseCameraWindow();
@@ -221,40 +224,140 @@ namespace FloatingMenu
             }
             if (_cameraWindow != null)
                 return;
-
+            if (!LaunchTouchDataCapture())
+            {
+                if (_signalSourcePage != null)
+                {
+                    foreach (var device in _signalSourcePage.Devices)
+                    {
+                        if (device.Status == DeviceStatusEnum.Connected)
+                        {
+                            device.Status = DeviceStatusEnum.Available;
+                        }
+                    }
+                }
+                return;
+            }
             _cameraWindow = new CameraWindow(index);
             _cameraWindow.CameraClosed += OnCameraClosed;
 
             _cameraWindow.Show();
            
+           
             CollapseMenu();
-            EdgeMenu.PCStatus.Text = _signalSourcePage.UpdateDevice();
+           
         }
 
+        private bool LaunchTouchDataCapture()
+        {
+            if (_touchProcess != null && !_touchProcess.HasExited)
+                return false;
+
+            try
+            {
+                string port = Helpers.ReadJSON.GetPortFromExternalConfig();
+
+                string exePath = System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory,
+                "Services", "TouchDataCapture",
+                "TouchDataCaptureService.exe"
+            );
+
+                _touchProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = exePath,
+                        Arguments = $"--port {port}",
+                        WorkingDirectory = System.IO.Path.GetDirectoryName(exePath),
+                        UseShellExecute = true
+                    }
+                };
+
+                _touchProcess.Start();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                var ports = string.Join(", ", SerialPort.GetPortNames()); //
+                MessageBox.Show(
+                    $"Invalid port in config\n\nAvailable ports:\n{ports}.",
+                    "Configuration Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return false;
+            }
+        }
 
         private void OnCameraClosed()
         {
+
             Dispatcher.Invoke(() =>
             {
                 _cameraWindow = null;
-                _cameraClosedManually = true;
                 _menuOpen = false;
+
+                if (_signalSourcePage != null)
+                {
+                    foreach (var device in _signalSourcePage.Devices)
+                    {
+                        if (device.Status == DeviceStatusEnum.Connected)
+                        {
+                            device.Status = DeviceStatusEnum.Available;
+                        }
+                    }
+                }
+
                 ToggleMenu();
                 EdgeMenu.ClearSelection();
                 EdgeMenu.SelectMenuItem(2);
-                if (_cameraClosedManually)
-                {
-                    _signalSourcePage = new SignalSource();
-                    _signalSourcePage.DeviceSelected += OpenCameraWindow;
-                    _cameraClosedManually = false;
-                }
-
+                KillTouchDataCapture();
                 ShowFlyout(_signalSourcePage);
-                EdgeMenu.PCStatus.Text = _signalSourcePage.UpdateDevice();
+                EdgeMenu.PCStatus.Text = "";
             });
+
+
+
+            //Dispatcher.Invoke(() =>
+            //{
+            //    _cameraWindow = null;
+            //    _cameraClosedManually = true;
+            //    _menuOpen = false;
+            //    ToggleMenu();
+            //    EdgeMenu.ClearSelection();
+            //    EdgeMenu.SelectMenuItem(2);
+            //    if (_cameraClosedManually)
+            //    {
+            //        _signalSourcePage = new SignalSource();
+            //        _signalSourcePage.DeviceSelected += OpenCameraWindow;
+            //        _cameraClosedManually = false;
+            //    }
+            //    KillTouchDataCapture();
+            //    ShowFlyout(_signalSourcePage);
+
+            //});
         }
 
-       
+        private void KillTouchDataCapture()
+        {
+            try
+            {
+                if (_touchProcess != null && !_touchProcess.HasExited)
+                {
+                    _touchProcess.Kill();
+                    _touchProcess.WaitForExit();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error killing process: " + ex.Message);
+            }
+            finally
+            {
+                _touchProcess = null;
+            }
+        }
+
         private void LaunchAnnotationAppAsync()
         {
             try
