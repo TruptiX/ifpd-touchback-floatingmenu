@@ -1,83 +1,149 @@
-| Supported Targets | ESP32-P4 | ESP32-S2 | ESP32-S3 |
-| ----------------- | -------- | -------- | -------- |
+# IFPD Touch Back
 
-# ifpd-touchback-floatingmenu
-To enable reverse touch / touch back feature in IA only IFPD
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com/)
+[![ESP32-S3](https://img.shields.io/badge/ESP32-S3-E7352C)](https://www.espressif.com/en/products/socs/esp32-s3)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-## TinyUSB Human Interface Device Example
+A complete solution to enable reverse touch / touch-back functionality for Interactive Flat Panel Displays (IFPD) with Intel Architecture (IA) platforms.
 
-Human interface devices (HID) are one of the most common USB devices, it is implemented in various devices such as keyboards, mice, game controllers, sensors and alphanumeric display devices.
-In this example, we implement USB keyboard and mouse.
-Upon connection to USB host (PC), the example application will sent 'key a/A pressed & released' events and move mouse in a square trajectory. To send these HID reports again, press the BOOT button, that is present on most ESP development boards (GPIO0).
+## 📋 Table of Contents
 
-As a USB stack, a TinyUSB component is used.
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Components](#components)
+- [System Requirements](#system-requirements)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Use Cases](#use-cases)
+- [Contributing](#contributing)
+- [License](#license)
 
-## How to use example
+## 🔍 Overview
 
-### Hardware Required
+This project enables touch input from an IFPD to be transferred to a connected computer, creating a seamless reverse touch experience. It consists of three main components:
 
-Any ESP board that have USB-OTG supported.
+1. **Touch Data Capture Service** (Windows) - Captures touch input from the IFPD
+2. **MCU Firmware** (ESP32-S3) - Acts as a bridge, receiving touch data via UART and presenting it as USB HID
+3. **Floating Menu Application** (Windows) - Provides a user-friendly interface for camera management and screen annotation
 
-#### Pin Assignment
+## 🏗️ Architecture
 
-_Note:_ In case your board doesn't have micro-USB connector connected to USB-OTG peripheral, you may have to DIY a cable and connect **D+** and **D-** to the pins listed below.
+<div align="center">
+	<img src="images/Architecture.png" alt="Architecture Diagram">
+</div>
 
-See common pin assignments for USB Device examples from [upper level](../../README.md#common-pin-assignments).
+## 📦 Components
 
-Boot signal (GPIO0) is used to send HID reports to USB host.
+### 1. Touch Data Capture Service (`Windows/GetTouchInfo`)
 
-### Build and Flash
+A Windows service that captures raw HID touch input and forwards it to the ESP32 via serial connection.
 
-Build the project and flash it to the board, then run monitor tool to view serial output:
+**Features:**
+- Raw HID touch event capture
+- High-speed serial communication (3 Mbaud)
+- Dynamic coordinate scaling
+- Process filtering
+- Comprehensive logging
+
+📖 [Full Documentation](Windows/GetTouchInfo/README.md)
+
+### 2. MCU Firmware (`MCU`)
+
+ESP32-S3 firmware that bridges UART touch data to USB HID multi-touch digitizer.
+
+**Features:**
+- 10-finger multi-touch support
+- USB HID Digitizer protocol
+- Low-latency dual-task architecture
+- Windows Precision Touchpad compatible
+
+**Supported Targets:** ESP32-S3
+
+📖 [Full Documentation](MCU/README.md)
+
+### 3. Floating Menu Application (`Windows/FloatingMenu`)
+
+A WPF application providing an edge-docked floating menu for camera management and screen annotation.
+
+**Features:**
+- Edge-docked collapsible UI
+- Camera detection and preview (OpenCV)
+- Signal source management
+- Screen annotation integration
+- Always-on-top interface
+
+📖 [Full Documentation](Windows/FloatingMenu/README.md)
+
+## 💻 System Requirements
+
+### Hardware
+- **IFPD Device**: Interactive Flat Panel Display with touch support
+- **ESP32-S3**: Development board with USB-OTG support
+- **Target Computer**: Any Windows PC
+- **Cables**: USB data cables, UART connection (TX/RX)
+
+### Software
+- **Windows 10/11** (for IFPD and Target Computer)
+- **.NET 10 SDK** (for Windows applications)
+- **ESP-IDF v5.x** (for MCU firmware)
+- **Visual Studio 2022** or **Visual Studio Code** (optional)
+
+## 🚀 Quick Start
+
+### 1. Setup MCU Firmware
 
 ```bash
-idf.py -p PORT flash monitor
+cd MCU
+# Follow SETUP.md for ESP-IDF configuration
+# Follow DEPLOYMENT.md for flashing
 ```
 
-(Replace PORT with the name of the serial port to use.)
+### 2. Build Windows Applications
 
-(To exit the serial monitor, type ``Ctrl-]``.)
+```bash
+cd Windows/GetTouchInfo
+dotnet build
+dotnet publish -c Release
 
-See the Getting Started Guide for full steps to configure and use ESP-IDF to build projects.
-
-## Example Output
-
-After the flashing you should see the output at idf monitor:
-
+cd ../FloatingMenu
+dotnet build
+dotnet publish -c Release
 ```
-I (290) cpu_start: Starting scheduler on PRO CPU.
-I (0) cpu_start: Starting scheduler on APP CPU.
-I (310) example: USB initialization
-I (310) tusb_desc:
-┌─────────────────────────────────┐
-│  USB Device Descriptor Summary  │
-├───────────────────┬─────────────┤
-│bDeviceClass       │ 0           │
-├───────────────────┼─────────────┤
-│bDeviceSubClass    │ 0           │
-├───────────────────┼─────────────┤
-│bDeviceProtocol    │ 0           │
-├───────────────────┼─────────────┤
-│bMaxPacketSize0    │ 64          │
-├───────────────────┼─────────────┤
-│idVendor           │ 0x303a      │
-├───────────────────┼─────────────┤
-│idProduct          │ 0x4004      │
-├───────────────────┼─────────────┤
-│bcdDevice          │ 0x100       │
-├───────────────────┼─────────────┤
-│iManufacturer      │ 0x1         │
-├───────────────────┼─────────────┤
-│iProduct           │ 0x2         │
-├───────────────────┼─────────────┤
-│iSerialNumber      │ 0x3         │
-├───────────────────┼─────────────┤
-│bNumConfigurations │ 0x1         │
-└───────────────────┴─────────────┘
-I (480) TinyUSB: TinyUSB Driver installed
-I (480) example: USB initialization DONE
-I (2490) example: Sending Keyboard report
-I (3040) example: Sending Mouse report
-```
+
+### 3. Deploy and Run
+
+1. Flash the ESP32-S3 with the MCU firmware
+2. Connect ESP32-S3 UART to IFPD's serial port
+3. Run Touch Data Capture Service on the IFPD
+4. Connect ESP32-S3 USB to Target Computer
+5. Launch Floating Menu Application on the IFPD
+
+## 📚 Documentation
+
+Each component has detailed documentation in its respective directory:
+
+- **[MCU README](MCU/README.md)** - ESP32-S3 firmware details
+- **[MCU SETUP](MCU/SETUP.md)** - Development environment setup
+- **[MCU DEPLOYMENT](MCU/DEPLOYMENT.md)** - Flashing and deployment guide
+- **[Touch Service README](Windows/GetTouchInfo/README.md)** - Touch capture service details
+- **[Floating Menu README](Windows/FloatingMenu/README.md)** - Floating menu application details
+
+## 🎯 Use Cases
+
+- **Presentation Mode**: Present from IFPD while controlling the connected laptop with touch
+- **Remote Control**: Use IFPD as a large touch interface for a connected computer
+- **Collaborative Work**: Share touch input across multiple devices
+- **Interactive Displays**: Enable touch-back for IA-only IFPD systems
+
+## 🤝 Contributing
+
+Contributions are welcome! Please ensure:
+- Code follows existing style conventions
+- All components build without errors
+- Documentation is updated accordingly
+
+## 📄 License
+
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) file for details
 
 
