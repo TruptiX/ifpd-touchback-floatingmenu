@@ -40,7 +40,7 @@ This guide covers building, publishing, and deploying the Floating Menu Applicat
    
    - Clone from GitHub
 	   ```
-	   git clone https://github.com/intel-sandbox/ifpd-touchback-floatingmenu.git
+	   git clone https://github.com/<your-organization>/ifpd-touchback-floatingmenu.git
 	   cd ifpd-touchback-floatingmenu
 	   ```
    - Or navigate to existing clone

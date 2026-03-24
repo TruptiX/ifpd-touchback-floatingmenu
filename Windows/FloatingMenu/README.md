@@ -143,7 +143,7 @@ FloatingMenu/
 
    - Clone repository:
 	```
-	git clone https://github.com/intel-sandbox/ifpd-touchback-floatingmenu.git 
+	git clone https://github.com/<your-organization>/ifpd-touchback-floatingmenu.git 
 	cd ifpd-touchback-floatingmenu\Windows\FloatingMenu
 	```
    - Build Release version:
@@ -568,7 +568,7 @@ Licensed under the Apache License, Version 2.0. See [Apache-2.0.txt](../../Apach
 
 ## 📚 Additional Resources
 
-- **Repository**: [https://github.com/intel-sandbox/ifpd-touchback-floatingmenu](https://github.com/intel-sandbox/ifpd-touchback-floatingmenu)
+- **Repository**: [https://github.com/<your-organization>/ifpd-touchback-floatingmenu](https://github.com/<your-organization>/ifpd-touchback-floatingmenu)
 - **Issue Tracker**: Report bugs and request features via GitHub Issues
 - **.NET Documentation**: [https://docs.microsoft.com/dotnet](https://docs.microsoft.com/dotnet)
 - **WPF Documentation**: [https://docs.microsoft.com/dotnet/desktop/wpf/](https://docs.microsoft.com/dotnet/desktop/wpf/)
