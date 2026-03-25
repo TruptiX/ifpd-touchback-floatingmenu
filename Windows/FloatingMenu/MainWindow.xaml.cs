@@ -324,7 +324,7 @@ namespace FloatingMenu
                 }
 
                 KillTouchDataCapture();
-                EdgeMenu.PCStatus.Text = "";
+                
                 EdgeMenu.ClearSelection();
 
                 if (!_menuOpen)

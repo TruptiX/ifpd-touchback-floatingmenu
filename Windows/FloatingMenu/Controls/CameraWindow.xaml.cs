@@ -18,9 +18,7 @@ namespace FloatingMenu.Controls
     /// </summary>
     public partial class CameraWindow : System.Windows.Window
     {
-        private VideoCapture _capture;
-        private CancellationTokenSource _cameraTokenSource;
-        private Task _cameraTask;
+        
         public event Action CameraClosed;
 
         private VideoCaptureDevice _videoSource;
