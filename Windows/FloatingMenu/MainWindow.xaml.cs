@@ -367,6 +367,19 @@ namespace FloatingMenu
             try
             {
                 string exePath = Helpers.ReadJSON.GetAnnotationAppPath();
+
+                if (exePath == null)
+                {
+                    MessageBox.Show(
+                        "Annotation app is not configured.\n\n" +
+                        "To enable this feature, add the full path to your annotation app executable in config.json:\n\n" +
+                        "\"AnnotationAppPath\": \"C:\\\\path\\\\to\\\\your\\\\app.exe\"",
+                        "Configuration Required",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
                 //string exePath = System.IO.Path.Combine(
                 //    AppDomain.CurrentDomain.BaseDirectory,
                 //    "ppInk",
