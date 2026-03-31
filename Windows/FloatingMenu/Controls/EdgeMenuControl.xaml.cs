@@ -24,6 +24,31 @@ namespace FloatingMenu.Controls
         {
             InitializeComponent();
             Loaded += EdgeMenuControl_Loaded;
+            NavList.PreviewMouseLeftButtonDown += NavList_PreviewMouseLeftButtonDown;
+        }
+
+        private void NavList_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var item = FindVisualParent<ListBoxItem>((DependencyObject)e.OriginalSource);
+            if (item != null)
+            {
+                int index = NavList.ItemContainerGenerator.IndexFromContainer(item);
+                if (index >= 0)
+                {
+                    MenuItemSelected?.Invoke(index);
+                }
+            }
+        }
+
+        private T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            while (child != null)
+            {
+                if (child is T parent)
+                    return parent;
+                child = VisualTreeHelper.GetParent(child);
+            }
+            return null;
         }
 
         private void EdgeMenuControl_Loaded(object sender, RoutedEventArgs e)
@@ -50,14 +75,15 @@ namespace FloatingMenu.Controls
 
         private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_suppressSelectionEvent)
-                return;
+            //if (_suppressSelectionEvent)
+            //    return;
 
-            if (NavList.SelectedIndex < 0)
-                return;
+            //if (NavList.SelectedIndex < 0)
+            //    return;
 
-            // Fire event to MainWindow
-            MenuItemSelected?.Invoke(NavList.SelectedIndex);
+            // Note: This event is now less critical since PreviewMouseLeftButtonDown handles clicks
+            // but we keep it for programmatic selection changes
+            // MenuItemSelected?.Invoke(NavList.SelectedIndex);
         }
 
         public void ClearSelection()

@@ -58,4 +58,9 @@
 
 		<Copy SourceFiles="@(ExternalFiles)" DestinationFolder="$(PublishDir)ExternalTools\%(RecursiveDir)" />
 	</Target>
+
+
+	<Target Name="DownloadAndExtract_ppInk" AfterTargets="Build">
+		<Exec Command="powershell -ExecutionPolicy Bypass -NoProfile -Command &quot;$url='https://github.com/pubpub-zz/ppInk/releases/download/v1.9.0RC1/ppInk.zip'; $zip='$(TargetDir)ppInk.zip'; $extract='$(TargetDir)ppInk_Extracted'; $exePath='$(TargetDir)ppInk.exe'; if (Test-Path $exePath) { Write-Host 'ppInk.exe already exists. Skipping download.'; exit 0 }; Write-Host 'Downloading ppInk...'; Invoke-WebRequest -Uri $url -OutFile $zip; if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }; Expand-Archive -Path $zip -DestinationPath $extract -Force; $exe = Get-ChildItem -Path $extract -Recurse -Filter 'ppInk.exe' | Select-Object -First 1; if ($exe -eq $null) { Write-Error 'ppInk.exe not found inside ZIP'; exit 1 }; Copy-Item $exe.FullName -Destination $exePath -Force; if (Test-Path $zip) { Remove-Item $zip -Force }; Write-Host 'ppInk setup completed successfully.';&quot;" />
+	</Target>
 </Project>
