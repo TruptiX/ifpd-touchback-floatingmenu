@@ -40,7 +40,7 @@ namespace FloatingMenu.Controls
             }
         }
 
-        private T FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        private T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
         {
             while (child != null)
             {
@@ -71,19 +71,6 @@ namespace FloatingMenu.Controls
 
             // Menu width = 4% of screen width
             this.Width = screenWidth * 0.033;
-        }
-
-        private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            //if (_suppressSelectionEvent)
-            //    return;
-
-            //if (NavList.SelectedIndex < 0)
-            //    return;
-
-            // Note: This event is now less critical since PreviewMouseLeftButtonDown handles clicks
-            // but we keep it for programmatic selection changes
-            // MenuItemSelected?.Invoke(NavList.SelectedIndex);
         }
 
         public void ClearSelection()
