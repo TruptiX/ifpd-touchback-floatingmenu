@@ -124,11 +124,11 @@ Windows/
 - **Flyout Panels** - Slide-out configuration panels
 - **Custom Styling** - Branded button and list styles
 - **Menu Items**:
-- Home (Collapse menu)
-- Exit (Close application)
-- Signal Source (Camera selection)
-- Annotation (Toggle ppInk annotation tool - click once to open, click again to close)
-- Settings (Future expansion)
+  - Home (Collapse menu)
+  - Exit (Close application)
+  - Signal Source (Camera selection)
+  - Annotation (Toggle ppInk annotation tool - click once to open, click again to close)
+  - Settings (Future expansion)
 
 ## 💻 System Requirements
 
